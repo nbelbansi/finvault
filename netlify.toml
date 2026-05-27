@@ -1,5 +1,5 @@
 [build]
-  command = "npm run build -w @finvault/web"
+  command = "npm run build -w @finvault/shared && npm run build -w @finvault/web"
   publish = "apps/web/dist"
 
 [[redirects]]
