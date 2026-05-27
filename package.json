@@ -1,0 +1,25 @@
+{
+  "name": "finvault",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Banking simulator for UI/API test practice (1000+ UI, 500+ API scenarios)",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "tests/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"npm run dev -w @finvault/api\" \"npm run dev -w @finvault/web\"",
+    "build:shared": "npm run build -w @finvault/shared",
+    "build": "npm run build:shared && npm run build -w @finvault/api && npm run build -w @finvault/web",
+    "db:push": "npm run db:push -w @finvault/api",
+    "db:seed": "npm run build -w @finvault/shared && npm run db:seed -w @finvault/api",
+    "db:reset": "npm run build -w @finvault/shared && npm run db:reset -w @finvault/api",
+    "test:api": "npm run test -w @finvault/api-tests",
+    "test:e2e": "npm run test -w @finvault/e2e-tests",
+    "test": "npm run test:api && npm run test:e2e"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

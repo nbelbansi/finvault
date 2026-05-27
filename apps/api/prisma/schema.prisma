@@ -1,0 +1,211 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  phone        String?
+  role         String   @default("CUSTOMER")
+  preferences  String   @default("{}")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  accounts      Account[]
+  payees        Payee[]
+  cards         Card[]
+  budgets       Budget[]
+  portfolios    Portfolio[]
+  loans         Loan[]
+  notifications Notification[]
+  transfers     Transfer[]
+  orders        Order[]
+  auditLogs     AuditLog[]
+}
+
+model Account {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  name      String
+  type      String
+  status    String   @default("ACTIVE")
+  balance   Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transactions Transaction[]
+  transfersFrom Transfer[] @relation("TransferFrom")
+}
+
+model Transaction {
+  id          String   @id @default(uuid())
+  accountId   String
+  account     Account  @relation(fields: [accountId], references: [id])
+  type        String
+  amount      Float
+  balanceAfter Float
+  memo        String?
+  referenceId String?
+  createdAt   DateTime @default(now())
+}
+
+model Transfer {
+  id                    String    @id @default(uuid())
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id])
+  fromAccountId         String
+  fromAccount           Account   @relation("TransferFrom", fields: [fromAccountId], references: [id])
+  toAccountId           String?
+  externalAccountNumber String?
+  externalRoutingNumber String?
+  amount                Float
+  status                String    @default("PENDING")
+  memo                  String?
+  scheduledDate         DateTime?
+  createdAt             DateTime  @default(now())
+  completedAt           DateTime?
+}
+
+model Payee {
+  id            String @id @default(uuid())
+  userId        String
+  user          User   @relation(fields: [userId], references: [id])
+  name          String
+  nickname      String?
+  accountNumber String
+  routingNumber String
+  createdAt     DateTime @default(now())
+}
+
+model BillPayment {
+  id            String   @id @default(uuid())
+  userId        String
+  payeeId       String
+  fromAccountId String
+  amount        Float
+  status        String   @default("COMPLETED")
+  dueDate       DateTime?
+  createdAt     DateTime @default(now())
+}
+
+model Card {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  lastFour     String
+  brand        String
+  status       String   @default("ACTIVE")
+  dailyLimit   Float    @default(5000)
+  linkedAccountId String?
+  createdAt    DateTime @default(now())
+}
+
+model Budget {
+  id           String @id @default(uuid())
+  userId       String
+  user         User   @relation(fields: [userId], references: [id])
+  name         String
+  category     String
+  monthlyLimit Float
+  spent        Float  @default(0)
+  alertAt      Float?
+  createdAt    DateTime @default(now())
+}
+
+model Portfolio {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  name      String
+  createdAt DateTime  @default(now())
+  holdings  Holding[]
+  orders    Order[]
+}
+
+model Holding {
+  id          String    @id @default(uuid())
+  portfolioId String
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id])
+  symbol      String
+  quantity    Float
+  avgCost     Float
+}
+
+model Order {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  portfolioId String
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id])
+  symbol      String
+  side        String
+  quantity    Float
+  orderType   String
+  limitPrice  Float?
+  status      String    @default("PENDING")
+  createdAt   DateTime  @default(now())
+}
+
+model WatchlistItem {
+  id     String @id @default(uuid())
+  userId String
+  symbol String
+}
+
+model Loan {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  type        String
+  amount      Float
+  termMonths  Int
+  rate        Float
+  status      String   @default("PENDING")
+  balance     Float    @default(0)
+  purpose     String?
+  createdAt   DateTime @default(now())
+}
+
+model LoanPayment {
+  id        String   @id @default(uuid())
+  loanId    String
+  amount    Float
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  body      String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  resource  String
+  details   String?
+  createdAt DateTime @default(now())
+}
+
+model PasswordReset {
+  id        String   @id @default(uuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+}

@@ -1,0 +1,220 @@
+openapi: 3.0.3
+info:
+  title: FinVault API
+  description: Banking simulator API for test automation practice
+  version: 1.0.0
+servers:
+  - url: http://localhost:4000/api
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register new user
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login
+  /auth/logout:
+    post:
+      tags: [Auth]
+      security: [{ bearerAuth: [] }]
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      security: [{ bearerAuth: [] }]
+  /auth/forgot-password:
+    post:
+      tags: [Auth]
+  /auth/reset-password:
+    post:
+      tags: [Auth]
+  /auth/me:
+    get:
+      tags: [Auth]
+      security: [{ bearerAuth: [] }]
+    patch:
+      tags: [Auth]
+      security: [{ bearerAuth: [] }]
+  /accounts:
+    get:
+      tags: [Accounts]
+      security: [{ bearerAuth: [] }]
+    post:
+      tags: [Accounts]
+      security: [{ bearerAuth: [] }]
+  /accounts/{id}:
+    get:
+      tags: [Accounts]
+      security: [{ bearerAuth: [] }]
+    patch:
+      tags: [Accounts]
+      security: [{ bearerAuth: [] }]
+    delete:
+      tags: [Accounts]
+      security: [{ bearerAuth: [] }]
+  /accounts/{id}/transactions:
+    get:
+      tags: [Accounts]
+      security: [{ bearerAuth: [] }]
+  /accounts/{id}/balance:
+    get:
+      tags: [Accounts]
+      security: [{ bearerAuth: [] }]
+  /accounts/{id}/deposit:
+    post:
+      tags: [Accounts]
+      security: [{ bearerAuth: [] }]
+  /accounts/{id}/withdraw:
+    post:
+      tags: [Accounts]
+      security: [{ bearerAuth: [] }]
+  /accounts/{id}/close:
+    post:
+      tags: [Accounts]
+      security: [{ bearerAuth: [] }]
+  /transfers:
+    get:
+      tags: [Transfers]
+      security: [{ bearerAuth: [] }]
+    post:
+      tags: [Transfers]
+      security: [{ bearerAuth: [] }]
+  /transfers/scheduled:
+    get:
+      tags: [Transfers]
+      security: [{ bearerAuth: [] }]
+  /transfers/{id}:
+    get:
+      tags: [Transfers]
+      security: [{ bearerAuth: [] }]
+  /transfers/{id}/cancel:
+    post:
+      tags: [Transfers]
+      security: [{ bearerAuth: [] }]
+  /payees:
+    get:
+      tags: [Payees]
+      security: [{ bearerAuth: [] }]
+    post:
+      tags: [Payees]
+      security: [{ bearerAuth: [] }]
+  /payees/{id}:
+    patch:
+      tags: [Payees]
+      security: [{ bearerAuth: [] }]
+    delete:
+      tags: [Payees]
+      security: [{ bearerAuth: [] }]
+  /bills:
+    get:
+      tags: [Bills]
+      security: [{ bearerAuth: [] }]
+  /bills/history:
+    get:
+      tags: [Bills]
+      security: [{ bearerAuth: [] }]
+  /bills/pay:
+    post:
+      tags: [Bills]
+      security: [{ bearerAuth: [] }]
+  /bills/schedule:
+    post:
+      tags: [Bills]
+      security: [{ bearerAuth: [] }]
+  /cards:
+    get:
+      tags: [Cards]
+      security: [{ bearerAuth: [] }]
+    post:
+      tags: [Cards]
+      security: [{ bearerAuth: [] }]
+  /cards/{id}/freeze:
+    post:
+      tags: [Cards]
+      security: [{ bearerAuth: [] }]
+  /cards/{id}/unfreeze:
+    post:
+      tags: [Cards]
+      security: [{ bearerAuth: [] }]
+  /cards/{id}/transactions:
+    get:
+      tags: [Cards]
+      security: [{ bearerAuth: [] }]
+  /cards/{id}/limits:
+    post:
+      tags: [Cards]
+      security: [{ bearerAuth: [] }]
+  /budgets:
+    get:
+      tags: [Budgets]
+      security: [{ bearerAuth: [] }]
+    post:
+      tags: [Budgets]
+      security: [{ bearerAuth: [] }]
+  /budgets/{id}/spending:
+    get:
+      tags: [Budgets]
+      security: [{ bearerAuth: [] }]
+  /budgets/{id}/alerts:
+    post:
+      tags: [Budgets]
+      security: [{ bearerAuth: [] }]
+  /portfolios:
+    get:
+      tags: [Investments]
+      security: [{ bearerAuth: [] }]
+    post:
+      tags: [Investments]
+      security: [{ bearerAuth: [] }]
+  /portfolios/{id}/holdings:
+    get:
+      tags: [Investments]
+      security: [{ bearerAuth: [] }]
+  /orders:
+    get:
+      tags: [Investments]
+      security: [{ bearerAuth: [] }]
+    post:
+      tags: [Investments]
+      security: [{ bearerAuth: [] }]
+  /watchlist:
+    get:
+      tags: [Investments]
+      security: [{ bearerAuth: [] }]
+    post:
+      tags: [Investments]
+      security: [{ bearerAuth: [] }]
+  /loans:
+    get:
+      tags: [Loans]
+      security: [{ bearerAuth: [] }]
+  /loans/apply:
+    post:
+      tags: [Loans]
+      security: [{ bearerAuth: [] }]
+  /loans/{id}/payment:
+    post:
+      tags: [Loans]
+      security: [{ bearerAuth: [] }]
+  /loans/{id}/amortization:
+    get:
+      tags: [Loans]
+      security: [{ bearerAuth: [] }]
+  /notifications:
+    get:
+      tags: [Notifications]
+      security: [{ bearerAuth: [] }]
+  /admin/users:
+    get:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+  /admin/metrics:
+    get:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

@@ -1,0 +1,157 @@
+# FinVault Test Scenario Catalog
+# Use this matrix to systematically reach 1000+ UI and 500+ API tests.
+# Formula: endpoints × scenarios + pages × interactions × data variants
+
+meta:
+  target_api_tests: 500
+  target_ui_tests: 1000
+  current_api_endpoints: 68
+  current_ui_pages: 14
+
+# Each API endpoint should cover these scenario types (≈8 tests × 68 = 544 API tests)
+api_scenario_types:
+  - id: happy_path
+    description: Valid request returns expected status and body
+  - id: auth_missing
+    description: No token returns 401
+  - id: auth_invalid
+    description: Expired/malformed token returns 401
+  - id: auth_forbidden
+    description: Wrong role returns 403
+  - id: validation_empty
+    description: Missing required fields returns 400
+  - id: validation_invalid
+    description: Invalid format/range returns 400
+  - id: not_found
+    description: Non-existent resource returns 404
+  - id: business_rule
+    description: Domain rule violation (insufficient funds, frozen account, etc.)
+
+modules:
+  auth:
+    endpoints: 8
+    ui_pages: [login, register, forgot-password, settings]
+    business_rules:
+      - duplicate email on register
+      - weak password rejected
+      - invalid login credentials
+      - password reset token expiry
+
+  accounts:
+    endpoints: 10
+    ui_pages: [accounts-list, account-detail, open-account]
+    business_rules:
+      - insufficient funds on withdraw
+      - frozen account blocks deposit/withdraw
+      - close account with non-zero balance
+      - pagination on transactions
+      - initial deposit limits
+
+  transfers:
+    endpoints: 5
+    ui_pages: [transfer-form, transfer-history]
+    business_rules:
+      - same account transfer blocked
+      - single transfer limit exceeded
+      - daily transfer limit (premium vs customer)
+      - scheduled transfer cancel
+      - external vs internal transfer paths
+
+  payees_bills:
+    endpoints: 8
+    ui_pages: [payee-form, bill-pay-form, bill-history]
+    business_rules:
+      - invalid routing number
+      - bill pay insufficient funds
+      - scheduled bill payment
+
+  cards:
+    endpoints: 7
+    ui_pages: [cards-list, card-limits]
+    business_rules:
+      - freeze/unfreeze lifecycle
+      - daily limit min/max validation
+      - cancelled card cannot freeze
+
+  budgets:
+    endpoints: 6
+    ui_pages: [budgets-list, budget-create]
+    business_rules:
+      - alert threshold configuration
+      - spending percentage calculation
+      - delete budget
+
+  investments:
+    endpoints: 9
+    ui_pages: [portfolios, order-form, watchlist]
+    business_rules:
+      - sell without holdings
+      - limit order requires price
+      - watchlist add/remove
+
+  loans:
+    endpoints: 6
+    ui_pages: [loans-list, loan-apply, loan-payment]
+    business_rules:
+      - payment exceeds balance
+      - amortization schedule
+      - prepayment
+      - loan type rates differ
+
+  notifications:
+    endpoints: 4
+    ui_pages: [notifications-list]
+    business_rules:
+      - mark single read
+      - mark all read
+      - unread filter
+
+  admin:
+    endpoints: 5
+    ui_pages: [admin-dashboard]
+    business_rules:
+      - customer cannot access admin
+      - user role update
+      - audit log entries
+      - maintenance mode
+
+# UI test expansion (≈14 pages × 70 scenarios = 980 UI tests)
+ui_scenario_types:
+  - id: render
+    description: Page loads with expected elements visible
+  - id: form_valid
+    description: Submit valid form shows success state
+  - id: form_invalid
+    description: Validation errors displayed
+  - id: navigation
+    description: Sidebar links route correctly
+  - id: empty_state
+    description: No data shows appropriate message
+  - id: loading_state
+    description: Spinner/skeleton during fetch
+  - id: error_state
+    description: API failure shows error
+  - id: responsive
+    description: Layout at mobile/tablet/desktop breakpoints
+  - id: accessibility
+    description: Keyboard nav, ARIA labels, focus order
+  - id: role_based
+    description: Admin nav hidden for customer
+
+data_variants:
+  users:
+    - alice@finvault.test  # CUSTOMER — standard limits
+    - bob@finvault.test    # PREMIUM — higher limits
+    - admin@finvault.test  # ADMIN — admin panel access
+  amounts:
+    boundary: [0.01, 0, -1, 999999999, 10000.01]
+    typical: [1, 50, 500, 5000]
+  account_types: [CHECKING, SAVINGS, MONEY_MARKET]
+
+interview_talking_points:
+  - "Used data-testid convention in shared package for stable selectors"
+  - "API tests use supertest with isolated test DB reset per suite"
+  - "E2E uses Playwright with webServer auto-start"
+  - "Scenario catalog drives systematic coverage, not ad-hoc tests"
+  - "OpenAPI spec documents contract for API testing"
+  - "Seed data provides deterministic fixtures for parallel tests"

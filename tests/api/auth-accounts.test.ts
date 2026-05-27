@@ -1,0 +1,135 @@
+import { describe, it, expect, beforeAll } from "vitest";
+import request from "supertest";
+import { execSync } from "child_process";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const apiDir = join(__dirname, "../../apps/api");
+
+process.env.NODE_ENV = "test";
+process.env.DATABASE_URL = "file:./test.db";
+process.env.JWT_SECRET = "test-secret";
+
+let app: typeof import("../../apps/api/src/index.js").app;
+let token: string;
+let accountId: string;
+
+beforeAll(async () => {
+  execSync("npx prisma db push --force-reset", { cwd: apiDir, stdio: "inherit" });
+  execSync("npx tsx prisma/seed.ts", { cwd: apiDir, stdio: "inherit" });
+  const mod = await import("../../apps/api/src/index.js");
+  app = mod.app;
+
+  const login = await request(app)
+    .post("/api/auth/login")
+    .send({ email: "alice@finvault.test", password: "Password123!" });
+  token = login.body.token;
+
+  const accounts = await request(app)
+    .get("/api/accounts")
+    .set("Authorization", `Bearer ${token}`);
+  accountId = accounts.body.accounts[0].id;
+}, 60000);
+
+describe("Auth API", () => {
+  it("POST /auth/login — valid credentials returns token", async () => {
+    const res = await request(app)
+      .post("/api/auth/login")
+      .send({ email: "alice@finvault.test", password: "Password123!" });
+    expect(res.status).toBe(200);
+    expect(res.body.token).toBeDefined();
+    expect(res.body.user.email).toBe("alice@finvault.test");
+  });
+
+  it("POST /auth/login — invalid password returns 401", async () => {
+    const res = await request(app)
+      .post("/api/auth/login")
+      .send({ email: "alice@finvault.test", password: "wrong" });
+    expect(res.status).toBe(401);
+  });
+
+  it("POST /auth/register — duplicate email returns 400", async () => {
+    const res = await request(app)
+      .post("/api/auth/register")
+      .send({
+        email: "alice@finvault.test",
+        password: "Password123!",
+        firstName: "A",
+        lastName: "B",
+      });
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe("EMAIL_EXISTS");
+  });
+
+  it("GET /auth/me — requires authentication", async () => {
+    const res = await request(app).get("/api/auth/me");
+    expect(res.status).toBe(401);
+  });
+});
+
+describe("Accounts API", () => {
+  it("GET /accounts — returns user accounts", async () => {
+    const res = await request(app)
+      .get("/api/accounts")
+      .set("Authorization", `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.accounts.length).toBeGreaterThan(0);
+  });
+
+  it("POST /accounts/:id/deposit — increases balance", async () => {
+    const before = await request(app)
+      .get(`/api/accounts/${accountId}/balance`)
+      .set("Authorization", `Bearer ${token}`);
+    const res = await request(app)
+      .post(`/api/accounts/${accountId}/deposit`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ amount: 100 });
+    expect(res.status).toBe(200);
+    expect(res.body.balance).toBe(before.body.balance + 100);
+  });
+
+  it("POST /accounts/:id/withdraw — insufficient funds returns 400", async () => {
+    const res = await request(app)
+      .post(`/api/accounts/${accountId}/withdraw`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ amount: 999999999 });
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe("INSUFFICIENT_FUNDS");
+  });
+});
+
+describe("Transfers API", () => {
+  it("POST /transfers — internal transfer between accounts", async () => {
+    const accounts = await request(app)
+      .get("/api/accounts")
+      .set("Authorization", `Bearer ${token}`);
+    const [from, to] = accounts.body.accounts;
+    const res = await request(app)
+      .post("/api/transfers")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ fromAccountId: from.id, toAccountId: to.id, amount: 50 });
+    expect(res.status).toBe(201);
+    expect(res.body.transfer.status).toBe("COMPLETED");
+  });
+});
+
+describe("Admin API", () => {
+  it("GET /admin/users — forbidden for customer", async () => {
+    const res = await request(app)
+      .get("/api/admin/users")
+      .set("Authorization", `Bearer ${token}`);
+    expect(res.status).toBe(403);
+  });
+
+  it("GET /admin/metrics — allowed for admin", async () => {
+    const adminLogin = await request(app)
+      .post("/api/auth/login")
+      .send({ email: "admin@finvault.test", password: "Admin123!" });
+    const res = await request(app)
+      .get("/api/admin/metrics")
+      .set("Authorization", `Bearer ${adminLogin.body.token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.metrics.totalUsers).toBeGreaterThan(0);
+  });
+});
