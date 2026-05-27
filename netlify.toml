@@ -2,6 +2,9 @@
   command = "npm run db:push && npm run db:seed && npm run build -w @finvault/shared && npm run build -w @finvault/web"
   publish = "apps/web/dist"
 
+[functions]
+  directory = "apps/api/functions"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
