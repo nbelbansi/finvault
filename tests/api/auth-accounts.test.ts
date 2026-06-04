@@ -3,21 +3,40 @@ import request from "supertest";
 import { execSync } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { config } from "dotenv";
+import { existsSync } from "fs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const apiDir = join(__dirname, "../../apps/api");
+const envPath = join(apiDir, ".env");
+
+if (existsSync(envPath)) config({ path: envPath });
+
+const dbUrl = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
+const directUrl = process.env.TEST_DIRECT_URL ?? process.env.DIRECT_URL;
+
+if (!dbUrl?.startsWith("postgresql")) {
+  throw new Error(
+    "Set DATABASE_URL (or TEST_DATABASE_URL) in apps/api/.env to your Neon PostgreSQL URL. See .env.example."
+  );
+}
 
 process.env.NODE_ENV = "test";
-process.env.DATABASE_URL = "file:./test.db";
-process.env.JWT_SECRET = "test-secret";
+process.env.DATABASE_URL = dbUrl;
+if (directUrl) process.env.DIRECT_URL = directUrl;
+process.env.JWT_SECRET = process.env.JWT_SECRET ?? "test-secret";
 
 let app: typeof import("../../apps/api/src/index.js").app;
 let token: string;
 let accountId: string;
 
 beforeAll(async () => {
-  execSync("npx prisma db push --force-reset", { cwd: apiDir, stdio: "inherit" });
-  execSync("npx tsx prisma/seed.ts", { cwd: apiDir, stdio: "inherit" });
+  execSync("npx prisma db push --force-reset", {
+    cwd: apiDir,
+    stdio: "inherit",
+    env: process.env,
+  });
+  execSync("npx tsx prisma/seed.ts", { cwd: apiDir, stdio: "inherit", env: process.env });
   const mod = await import("../../apps/api/src/index.js");
   app = mod.app;
 
@@ -30,7 +49,7 @@ beforeAll(async () => {
     .get("/api/accounts")
     .set("Authorization", `Bearer ${token}`);
   accountId = accounts.body.accounts[0].id;
-}, 60000);
+}, 120000);
 
 describe("Auth API", () => {
   it("POST /auth/login — valid credentials returns token", async () => {

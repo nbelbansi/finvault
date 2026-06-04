@@ -1,22 +1,40 @@
 # FinVault — Banking Simulator for Test Automation Practice
 
-A full-stack financial application built specifically for learning **UI test automation** (target: 1000+ cases) and **API test automation** (target: 500+ cases). Ideal for interview prep and portfolio projects.
+A full-stack **finance domain** application built for **1000+ UI tests** and **500+ API tests**. Uses **Neon PostgreSQL** (cloud only — no local database) and deploys to **Netlify** (React SPA + serverless API).
 
-## What's included
+## Stack
 
 | Layer | Tech | Purpose |
 |-------|------|---------|
-| API | Express + Prisma + SQLite | 68 REST endpoints across 10 modules |
-| Web | React + Vite | 14 pages with `data-testid` on every interactive element |
-| Shared | Zod schemas + test IDs | Single source of truth for validation & selectors |
-| API tests | Vitest + Supertest | Example suite with DB isolation |
-| E2E tests | Playwright | Example UI flows with auto-start servers |
+| Database | **Neon PostgreSQL** | Serverless Postgres via Prisma |
+| API | Express + Prisma + Netlify Functions | 68 REST endpoints across 10 modules |
+| Web | React + Vite | 14 pages with `data-testid` on interactive elements |
+| Deploy | **Netlify** | Static frontend + `/api` serverless function |
+| Shared | Zod schemas + test IDs | Validation & stable selectors |
+| API tests | Vitest + Supertest | Example suite (Neon test branch recommended) |
+| E2E tests | Playwright | Example UI flows |
 | Catalog | YAML scenario matrix | Roadmap to 500+ API / 1000+ UI tests |
 
-## Quick start
+## Quick start (Neon required)
+
+### 1. Create a Neon project
+
+1. Sign up at [neon.tech](https://neon.tech)
+2. Create a project and database
+3. Copy **Pooled connection** → `DATABASE_URL`
+4. Copy **Direct connection** → `DIRECT_URL`
+
+### 2. Configure environment
 
 ```bash
-cd C:\Users\nkumar\projects\finvault
+cd d:\react-project\finvault
+cp apps/api/.env.example apps/api/.env
+# Edit apps/api/.env with your Neon URLs and JWT_SECRET
+```
+
+### 3. Install, migrate, seed
+
+```bash
 npm install
 npm run db:push
 npm run db:seed
@@ -50,14 +68,27 @@ npm run dev
 
 ## Running tests
 
+API tests reset and re-seed the database configured in `apps/api/.env`. Use a **separate Neon branch** for `TEST_DATABASE_URL` when possible.
+
 ```bash
-# API tests (resets test DB automatically)
+# API tests (requires Neon URL in apps/api/.env)
 npm run test:api
 
-# E2E tests (starts API + web automatically)
+# E2E tests (starts API + web locally; API still uses Neon)
 cd tests/e2e && npx playwright install chromium
 npm run test:e2e
 ```
+
+## Deploy to Netlify
+
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for step-by-step Netlify + Neon setup.
+
+Summary:
+
+1. Push repo to GitHub
+2. Connect site in Netlify (build command and publish dir are in `netlify.toml`)
+3. Set environment variables: `DATABASE_URL`, `DIRECT_URL`, `JWT_SECRET`, `CORS_ORIGINS`
+4. Deploy, then run `npm run db:seed` once against production Neon (or use a Neon branch)
 
 ## How to reach 1000+ UI / 500+ API tests
 
@@ -71,13 +102,16 @@ See [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) and [tests/catalog/scenario-m
 
 ```
 finvault/
-├── apps/api/          # Express REST API
-├── apps/web/          # React frontend
-├── packages/shared/   # Schemas, constants, testIds
-├── tests/api/         # Supertest + Vitest
-├── tests/e2e/         # Playwright
-├── tests/catalog/     # Scenario matrix
-└── docs/              # Testing guide
+├── apps/api/              # Express REST API + Netlify function
+│   ├── netlify/functions/ # Serverless handler for /api/*
+│   └── prisma/            # PostgreSQL schema (Neon)
+├── apps/web/              # React frontend
+├── packages/shared/       # Schemas, constants, testIds
+├── tests/api/             # Supertest + Vitest
+├── tests/e2e/             # Playwright
+├── tests/catalog/         # Scenario matrix
+├── netlify.toml           # Netlify build & redirects
+└── docs/                  # Deployment & testing guides
 ```
 
 ## Interview highlights
@@ -87,3 +121,4 @@ finvault/
 - Role-based access (CUSTOMER / PREMIUM / ADMIN)
 - Business rule errors with machine-readable `code` fields
 - OpenAPI contract for API documentation and contract testing
+- Cloud-native: Neon + Netlify (no local SQLite)

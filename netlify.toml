@@ -1,16 +1,80 @@
+# FinVault — Netlify deployment
+# Stack: React SPA (apps/web) + Express serverless API + Neon PostgreSQL
+#
+# Required site environment variables (Site settings → Environment variables):
+#   DATABASE_URL  — Neon pooled connection string
+#   DIRECT_URL    — Neon direct connection string (schema push during build)
+#   JWT_SECRET    — Auth signing secret
+#   CORS_ORIGINS  — e.g. https://your-site.netlify.app (comma-separated)
+
 [build]
-  command = "npm run db:push && npm run db:seed && npm run build -w @finvault/shared && npm run build -w @finvault/web"
+  # Netlify runs `npm install` at repo root (npm workspaces) before this command.
+  command = "npm run netlify:build"
   publish = "apps/web/dist"
 
+[build.environment]
+  NODE_VERSION = "20"
+  AWS_LAMBDA_JS_RUNTIME = "nodejs20.x"
+  # Install devDependencies (Prisma CLI) during build
+  NPM_CONFIG_PRODUCTION = "false"
+  CI = "true"
+  NODE_ENV = "production"
+
 [functions]
-  directory = "apps/api/functions"
+  directory = "apps/api/netlify/functions"
+  node_bundler = "esbuild"
+  # Prisma query engine — paths relative to repository root
+  included_files = [
+    "node_modules/.prisma/**",
+    "node_modules/@prisma/client/**",
+  ]
+  external_node_modules = ["@prisma/client"]
+
+[functions."api"]
+  timeout = 26
+  memory = 1024
+  included_files = [
+    "node_modules/.prisma/**",
+    "node_modules/@prisma/client/**",
+    "apps/api/prisma/schema.prisma",
+    "apps/api/openapi.yaml",
+  ]
+
+# API must be rewritten before the SPA catch-all
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api"
+  status = 200
+  force = true
 
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
 
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
+# Preview deploys use the same Neon vars (or override in Netlify UI per context)
+[context.deploy-preview.environment]
+  NODE_ENV = "production"
+
+[context.production.environment]
+  NODE_ENV = "production"
+
+# Local parity: netlify dev (proxies /api to the function, web on 8888)
+[dev]
+  command = "npm run dev -w @finvault/web"
+  targetPort = 5173
+  port = 8888
+  framework = "#custom"
+  autoLaunch = true
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"

@@ -1,10 +1,12 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -42,20 +44,20 @@ model Account {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  transactions Transaction[]
+  transactions  Transaction[]
   transfersFrom Transfer[] @relation("TransferFrom")
 }
 
 model Transaction {
-  id          String   @id @default(uuid())
-  accountId   String
-  account     Account  @relation(fields: [accountId], references: [id])
-  type        String
-  amount      Float
+  id           String   @id @default(uuid())
+  accountId    String
+  account      Account  @relation(fields: [accountId], references: [id])
+  type         String
+  amount       Float
   balanceAfter Float
-  memo        String?
-  referenceId String?
-  createdAt   DateTime @default(now())
+  memo         String?
+  referenceId  String?
+  createdAt    DateTime @default(now())
 }
 
 model Transfer {
@@ -76,9 +78,9 @@ model Transfer {
 }
 
 model Payee {
-  id            String @id @default(uuid())
+  id            String   @id @default(uuid())
   userId        String
-  user          User   @relation(fields: [userId], references: [id])
+  user          User     @relation(fields: [userId], references: [id])
   name          String
   nickname      String?
   accountNumber String
@@ -87,36 +89,36 @@ model Payee {
 }
 
 model BillPayment {
-  id            String   @id @default(uuid())
+  id            String    @id @default(uuid())
   userId        String
   payeeId       String
   fromAccountId String
   amount        Float
-  status        String   @default("COMPLETED")
+  status        String    @default("COMPLETED")
   dueDate       DateTime?
-  createdAt     DateTime @default(now())
+  createdAt     DateTime  @default(now())
 }
 
 model Card {
-  id           String   @id @default(uuid())
-  userId       String
-  user         User     @relation(fields: [userId], references: [id])
-  lastFour     String
-  brand        String
-  status       String   @default("ACTIVE")
-  dailyLimit   Float    @default(5000)
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  lastFour        String
+  brand           String
+  status          String   @default("ACTIVE")
+  dailyLimit      Float    @default(5000)
   linkedAccountId String?
-  createdAt    DateTime @default(now())
+  createdAt       DateTime @default(now())
 }
 
 model Budget {
-  id           String @id @default(uuid())
+  id           String   @id @default(uuid())
   userId       String
-  user         User   @relation(fields: [userId], references: [id])
+  user         User     @relation(fields: [userId], references: [id])
   name         String
   category     String
   monthlyLimit Float
-  spent        Float  @default(0)
+  spent        Float    @default(0)
   alertAt      Float?
   createdAt    DateTime @default(now())
 }

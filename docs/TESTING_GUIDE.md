@@ -20,7 +20,7 @@ FinVault is designed so every dimension is explicit — endpoints, validation ru
 
 - **Vitest** — test runner
 - **Supertest** — HTTP assertions against Express app
-- **Isolated DB** — `test.db` reset before each suite
+- **Neon test database** — `prisma db push --force-reset` + re-seed before suite (use `TEST_DATABASE_URL` on a separate Neon branch)
 
 ### Scenario types (apply to EVERY endpoint)
 
