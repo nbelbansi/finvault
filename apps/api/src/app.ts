@@ -2,9 +2,8 @@ import express from "express";
 import cors from "cors";
 import swaggerUi from "swagger-ui-express";
 import { readFileSync } from "fs";
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
 import YAML from "yaml";
+import { resolveOpenApiPath } from "./lib/paths.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { authRouter } from "./routes/auth.js";
 import { accountsRouter } from "./routes/accounts.js";
@@ -20,8 +19,6 @@ import {
 import { loansRouter } from "./routes/loans.js";
 import { notificationsRouter } from "./routes/notifications.js";
 import { adminRouter } from "./routes/admin.js";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
 
 function parseCorsOrigins() {
   const fromEnv = process.env.CORS_ORIGINS?.split(",").map((o) => o.trim()).filter(Boolean);
@@ -57,11 +54,15 @@ export function createApp() {
   app.use("/api/notifications", notificationsRouter);
   app.use("/api/admin", adminRouter);
 
-  try {
-    const openapiPath = join(__dirname, "..", "openapi.yaml");
-    const spec = YAML.parse(readFileSync(openapiPath, "utf8"));
-    app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(spec));
-  } catch {
+  const openapiPath = resolveOpenApiPath();
+  if (openapiPath) {
+    try {
+      const spec = YAML.parse(readFileSync(openapiPath, "utf8"));
+      app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(spec));
+    } catch (err) {
+      console.warn("OpenAPI spec failed to load — /api/docs disabled", err);
+    }
+  } else {
     console.warn("OpenAPI spec not found — /api/docs disabled");
   }
 

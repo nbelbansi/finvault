@@ -52,7 +52,9 @@ npm run dev
 | `CORS_ORIGINS` | Yes | `https://your-site.netlify.app` (and preview URLs if needed) |
 | `NODE_VERSION` | No | Set to `20` if not using `netlify.toml` default |
 
-Do **not** commit `.env` files. Configure variables in **Site settings → Environment variables**.
+Do **not** commit `.env` files. Configure variables in **Site settings → Environment variables** only.
+
+If your build log shows `Environment variables loaded from .env`, remove `apps/api/.env` from the repo (it is gitignored locally but must not be committed).
 
 ## 5. First deploy
 

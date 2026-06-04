@@ -6,27 +6,28 @@
 #   DIRECT_URL    — Neon direct connection string (schema push during build)
 #   JWT_SECRET    — Auth signing secret
 #   CORS_ORIGINS  — e.g. https://your-site.netlify.app (comma-separated)
+#
+# Do NOT commit apps/api/.env — set secrets only in Netlify UI.
 
 [build]
-  # Netlify runs `npm install` at repo root (npm workspaces) before this command.
   command = "npm run netlify:build"
   publish = "apps/web/dist"
 
 [build.environment]
   NODE_VERSION = "20"
   AWS_LAMBDA_JS_RUNTIME = "nodejs20.x"
-  # Install devDependencies (Prisma CLI) during build
-  NPM_CONFIG_PRODUCTION = "false"
+  # Netlify sets NODE_ENV=production during install; include devDeps for Prisma CLI
+  NPM_FLAGS = "--include=dev"
   CI = "true"
-  NODE_ENV = "production"
 
 [functions]
   directory = "apps/api/netlify/functions"
   node_bundler = "esbuild"
-  # Prisma query engine — paths relative to repository root
+  # ESM: apps/api/netlify/functions/package.json has "type": "module"
   included_files = [
     "node_modules/.prisma/**",
     "node_modules/@prisma/client/**",
+    "apps/api/openapi.yaml",
   ]
   external_node_modules = ["@prisma/client"]
 
@@ -40,7 +41,6 @@
     "apps/api/openapi.yaml",
   ]
 
-# API must be rewritten before the SPA catch-all
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api"
@@ -52,14 +52,12 @@
   to = "/index.html"
   status = 200
 
-# Preview deploys use the same Neon vars (or override in Netlify UI per context)
 [context.deploy-preview.environment]
   NODE_ENV = "production"
 
 [context.production.environment]
   NODE_ENV = "production"
 
-# Local parity: netlify dev (proxies /api to the function, web on 8888)
 [dev]
   command = "npm run dev -w @finvault/web"
   targetPort = 5173
