@@ -21,11 +21,11 @@
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
-    "serverless-http": "^3.2.0",
+    "prisma": "^6.8.2",
+    "serverless-http": "^4.0.0",
     "swagger-ui-express": "^5.0.1",
     "yaml": "^2.8.0",
-    "zod": "^3.24.2",
-    "prisma": "^6.8.2"
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

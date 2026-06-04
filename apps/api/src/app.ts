@@ -1,4 +1,4 @@
-import express from "express";
+import express, { type NextFunction, type Request, type Response } from "express";
 import cors from "cors";
 import swaggerUi from "swagger-ui-express";
 import { readFileSync } from "fs";
@@ -20,6 +20,17 @@ import { loansRouter } from "./routes/loans.js";
 import { notificationsRouter } from "./routes/notifications.js";
 import { adminRouter } from "./routes/admin.js";
 
+/**
+ * Express 5 + serverless-http: body-parser skips when socket.readable is false.
+ * Required for Netlify Functions so JSON POST bodies (login, etc.) are parsed.
+ */
+function serverlessJsonBodyFix(req: Request, _res: Response, next: NextFunction) {
+  if (req.socket && !req.socket.readable) {
+    (req.socket as { readable?: boolean }).readable = true;
+  }
+  next();
+}
+
 function parseCorsOrigins() {
   const fromEnv = process.env.CORS_ORIGINS?.split(",").map((o) => o.trim()).filter(Boolean);
   if (fromEnv?.length) return fromEnv;
@@ -34,6 +45,7 @@ export function createApp() {
   const app = express();
 
   app.use(cors({ origin: parseCorsOrigins() }));
+  app.use(serverlessJsonBodyFix);
   app.use(express.json());
 
   app.get("/health", (_req, res) => {
