@@ -27,7 +27,7 @@ adminRouter.patch(
   "/users/:id",
   asyncHandler(async (req, res) => {
     const admin = await requireRole(req, "ADMIN");
-    const user = await prisma.user.findUnique({ where: { id: req.params.id } });
+    const user = await prisma.user.findUnique({ where: { id: (req.params.id as string) } });
     if (!user) throw notFound("User");
     const { role, frozen } = req.body as { role?: string; frozen?: boolean };
     const updated = await prisma.user.update({

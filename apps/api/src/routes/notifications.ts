@@ -23,7 +23,7 @@ notificationsRouter.patch(
   "/:id/read",
   asyncHandler(async (req, res) => {
     const user = await requireAuth(req);
-    const n = await prisma.notification.findFirst({ where: { id: req.params.id, userId: user.id } });
+    const n = await prisma.notification.findFirst({ where: { id: (req.params.id as string), userId: user.id } });
     if (!n) throw notFound("Notification");
     const updated = await prisma.notification.update({ where: { id: n.id }, data: { read: true } });
     res.json({ notification: updated });
@@ -43,7 +43,7 @@ notificationsRouter.delete(
   "/:id",
   asyncHandler(async (req, res) => {
     const user = await requireAuth(req);
-    const n = await prisma.notification.findFirst({ where: { id: req.params.id, userId: user.id } });
+    const n = await prisma.notification.findFirst({ where: { id: (req.params.id as string), userId: user.id } });
     if (!n) throw notFound("Notification");
     await prisma.notification.delete({ where: { id: n.id } });
     res.status(204).send();

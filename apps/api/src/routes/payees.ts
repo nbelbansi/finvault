@@ -34,7 +34,7 @@ payeesRouter.patch(
   "/:id",
   asyncHandler(async (req, res) => {
     const user = await requireAuth(req);
-    const payee = await prisma.payee.findFirst({ where: { id: req.params.id, userId: user.id } });
+    const payee = await prisma.payee.findFirst({ where: { id: (req.params.id as string), userId: user.id } });
     if (!payee) throw notFound("Payee");
     const updated = await prisma.payee.update({
       where: { id: payee.id },
@@ -51,7 +51,7 @@ payeesRouter.delete(
   "/:id",
   asyncHandler(async (req, res) => {
     const user = await requireAuth(req);
-    const payee = await prisma.payee.findFirst({ where: { id: req.params.id, userId: user.id } });
+    const payee = await prisma.payee.findFirst({ where: { id: (req.params.id as string), userId: user.id } });
     if (!payee) throw notFound("Payee");
     await prisma.payee.delete({ where: { id: payee.id } });
     res.status(204).send();

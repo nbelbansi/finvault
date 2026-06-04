@@ -129,7 +129,7 @@ transfersRouter.get(
   asyncHandler(async (req, res) => {
     const user = await requireAuth(req);
     const transfer = await prisma.transfer.findFirst({
-      where: { id: req.params.id, userId: user.id },
+      where: { id: (req.params.id as string), userId: user.id },
     });
     if (!transfer) throw notFound("Transfer");
     res.json({ transfer });
@@ -141,7 +141,7 @@ transfersRouter.post(
   asyncHandler(async (req, res) => {
     const user = await requireAuth(req);
     const transfer = await prisma.transfer.findFirst({
-      where: { id: req.params.id, userId: user.id },
+      where: { id: (req.params.id as string), userId: user.id },
     });
     if (!transfer) throw notFound("Transfer");
     if (transfer.status !== "PENDING") throw badRequest("Only pending transfers can be cancelled");

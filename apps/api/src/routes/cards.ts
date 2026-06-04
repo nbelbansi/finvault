@@ -33,7 +33,7 @@ cardsRouter.patch(
   "/:id",
   asyncHandler(async (req, res) => {
     const user = await requireAuth(req);
-    const card = await prisma.card.findFirst({ where: { id: req.params.id, userId: user.id } });
+    const card = await prisma.card.findFirst({ where: { id: (req.params.id as string), userId: user.id } });
     if (!card) throw notFound("Card");
     const updated = await prisma.card.update({
       where: { id: card.id },
@@ -47,7 +47,7 @@ cardsRouter.post(
   "/:id/freeze",
   asyncHandler(async (req, res) => {
     const user = await requireAuth(req);
-    const card = await prisma.card.findFirst({ where: { id: req.params.id, userId: user.id } });
+    const card = await prisma.card.findFirst({ where: { id: (req.params.id as string), userId: user.id } });
     if (!card) throw notFound("Card");
     if (card.status === "CANCELLED") throw badRequest("Card is cancelled");
     const updated = await prisma.card.update({ where: { id: card.id }, data: { status: "FROZEN" } });
@@ -60,7 +60,7 @@ cardsRouter.post(
   "/:id/unfreeze",
   asyncHandler(async (req, res) => {
     const user = await requireAuth(req);
-    const card = await prisma.card.findFirst({ where: { id: req.params.id, userId: user.id } });
+    const card = await prisma.card.findFirst({ where: { id: (req.params.id as string), userId: user.id } });
     if (!card) throw notFound("Card");
     const updated = await prisma.card.update({ where: { id: card.id }, data: { status: "ACTIVE" } });
     res.json({ card: updated });
@@ -71,7 +71,7 @@ cardsRouter.get(
   "/:id/transactions",
   asyncHandler(async (req, res) => {
     const user = await requireAuth(req);
-    const card = await prisma.card.findFirst({ where: { id: req.params.id, userId: user.id } });
+    const card = await prisma.card.findFirst({ where: { id: (req.params.id as string), userId: user.id } });
     if (!card) throw notFound("Card");
     res.json({
       transactions: [
@@ -86,7 +86,7 @@ cardsRouter.post(
   "/:id/limits",
   asyncHandler(async (req, res) => {
     const user = await requireAuth(req);
-    const card = await prisma.card.findFirst({ where: { id: req.params.id, userId: user.id } });
+    const card = await prisma.card.findFirst({ where: { id: (req.params.id as string), userId: user.id } });
     if (!card) throw notFound("Card");
     const { dailyLimit } = req.body as { dailyLimit?: number };
     if (!dailyLimit || dailyLimit < 100 || dailyLimit > 50000) {

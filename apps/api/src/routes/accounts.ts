@@ -60,7 +60,7 @@ accountsRouter.get(
   "/:id",
   asyncHandler(async (req, res) => {
     const user = await requireAuth(req);
-    const account = await getOwnedAccount(user.id, req.params.id);
+    const account = await getOwnedAccount(user.id, (req.params.id as string));
     res.json({ account });
   })
 );
@@ -69,7 +69,7 @@ accountsRouter.patch(
   "/:id",
   asyncHandler(async (req, res) => {
     const user = await requireAuth(req);
-    const account = await getOwnedAccount(user.id, req.params.id);
+    const account = await getOwnedAccount(user.id, (req.params.id as string));
     if (account.status === "CLOSED") throw badRequest("Account is closed");
     const { name } = req.body as { name?: string };
     const updated = await prisma.account.update({
@@ -84,7 +84,7 @@ accountsRouter.delete(
   "/:id",
   asyncHandler(async (req, res) => {
     const user = await requireAuth(req);
-    const account = await getOwnedAccount(user.id, req.params.id);
+    const account = await getOwnedAccount(user.id, (req.params.id as string));
     if (account.balance !== 0) throw badRequest("Balance must be zero to delete");
     await prisma.account.delete({ where: { id: account.id } });
     res.status(204).send();
@@ -95,16 +95,16 @@ accountsRouter.get(
   "/:id/transactions",
   asyncHandler(async (req, res) => {
     const user = await requireAuth(req);
-    await getOwnedAccount(user.id, req.params.id);
+    await getOwnedAccount(user.id, (req.params.id as string));
     const page = Math.max(1, Number(req.query.page) || 1);
     const limit = Math.min(100, Number(req.query.limit) || 20);
     const transactions = await prisma.transaction.findMany({
-      where: { accountId: req.params.id },
+      where: { accountId: (req.params.id as string) },
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * limit,
       take: limit,
     });
-    const total = await prisma.transaction.count({ where: { accountId: req.params.id } });
+    const total = await prisma.transaction.count({ where: { accountId: (req.params.id as string) } });
     res.json({ transactions, page, limit, total });
   })
 );
@@ -113,7 +113,7 @@ accountsRouter.get(
   "/:id/balance",
   asyncHandler(async (req, res) => {
     const user = await requireAuth(req);
-    const account = await getOwnedAccount(user.id, req.params.id);
+    const account = await getOwnedAccount(user.id, (req.params.id as string));
     res.json({ balance: account.balance, currency: "USD" });
   })
 );
@@ -123,7 +123,7 @@ accountsRouter.post(
   validateBody(depositSchema),
   asyncHandler(async (req, res) => {
     const user = await requireAuth(req);
-    const account = await getOwnedAccount(user.id, req.params.id);
+    const account = await getOwnedAccount(user.id, (req.params.id as string));
     if (account.status !== "ACTIVE") throw forbidden("Account is not active");
     const newBalance = account.balance + req.body.amount;
     const [updated] = await prisma.$transaction([
@@ -148,7 +148,7 @@ accountsRouter.post(
   validateBody(withdrawSchema),
   asyncHandler(async (req, res) => {
     const user = await requireAuth(req);
-    const account = await getOwnedAccount(user.id, req.params.id);
+    const account = await getOwnedAccount(user.id, (req.params.id as string));
     if (account.status !== "ACTIVE") throw forbidden("Account is not active");
     if (account.balance < req.body.amount) throw badRequest("Insufficient funds", "INSUFFICIENT_FUNDS");
     const newBalance = account.balance - req.body.amount;
@@ -173,7 +173,7 @@ accountsRouter.post(
   "/:id/close",
   asyncHandler(async (req, res) => {
     const user = await requireAuth(req);
-    const account = await getOwnedAccount(user.id, req.params.id);
+    const account = await getOwnedAccount(user.id, (req.params.id as string));
     if (account.balance !== 0) throw badRequest("Transfer remaining balance before closing");
     const updated = await prisma.account.update({
       where: { id: account.id },

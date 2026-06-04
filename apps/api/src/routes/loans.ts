@@ -46,7 +46,7 @@ loansRouter.get(
   "/:id",
   asyncHandler(async (req, res) => {
     const user = await requireAuth(req);
-    const loan = await prisma.loan.findFirst({ where: { id: req.params.id, userId: user.id } });
+    const loan = await prisma.loan.findFirst({ where: { id: (req.params.id as string), userId: user.id } });
     if (!loan) throw notFound("Loan");
     res.json({ loan });
   })
@@ -56,7 +56,7 @@ loansRouter.post(
   "/:id/payment",
   asyncHandler(async (req, res) => {
     const user = await requireAuth(req);
-    const loan = await prisma.loan.findFirst({ where: { id: req.params.id, userId: user.id } });
+    const loan = await prisma.loan.findFirst({ where: { id: (req.params.id as string), userId: user.id } });
     if (!loan) throw notFound("Loan");
     const { amount } = req.body as { amount?: number };
     if (!amount || amount <= 0) throw badRequest("Valid payment amount required");
@@ -78,7 +78,7 @@ loansRouter.get(
   "/:id/amortization",
   asyncHandler(async (req, res) => {
     const user = await requireAuth(req);
-    const loan = await prisma.loan.findFirst({ where: { id: req.params.id, userId: user.id } });
+    const loan = await prisma.loan.findFirst({ where: { id: (req.params.id as string), userId: user.id } });
     if (!loan) throw notFound("Loan");
     const monthlyRate = loan.rate / 100 / 12;
     const payment =
@@ -99,7 +99,7 @@ loansRouter.post(
   "/:id/prepay",
   asyncHandler(async (req, res) => {
     const user = await requireAuth(req);
-    const loan = await prisma.loan.findFirst({ where: { id: req.params.id, userId: user.id } });
+    const loan = await prisma.loan.findFirst({ where: { id: (req.params.id as string), userId: user.id } });
     if (!loan) throw notFound("Loan");
     const { amount } = req.body as { amount?: number };
     if (!amount) throw badRequest("Amount required");

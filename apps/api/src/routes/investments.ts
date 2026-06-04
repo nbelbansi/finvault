@@ -37,7 +37,7 @@ portfoliosRouter.get(
   asyncHandler(async (req, res) => {
     const user = await requireAuth(req);
     const portfolio = await prisma.portfolio.findFirst({
-      where: { id: req.params.id, userId: user.id },
+      where: { id: (req.params.id as string), userId: user.id },
       include: { holdings: true },
     });
     if (!portfolio) throw notFound("Portfolio");
@@ -112,7 +112,7 @@ ordersRouter.get(
   "/:id",
   asyncHandler(async (req, res) => {
     const user = await requireAuth(req);
-    const order = await prisma.order.findFirst({ where: { id: req.params.id, userId: user.id } });
+    const order = await prisma.order.findFirst({ where: { id: (req.params.id as string), userId: user.id } });
     if (!order) throw notFound("Order");
     res.json({ order });
   })
@@ -122,7 +122,7 @@ ordersRouter.delete(
   "/:id",
   asyncHandler(async (req, res) => {
     const user = await requireAuth(req);
-    const order = await prisma.order.findFirst({ where: { id: req.params.id, userId: user.id } });
+    const order = await prisma.order.findFirst({ where: { id: (req.params.id as string), userId: user.id } });
     if (!order) throw notFound("Order");
     if (order.status !== "PENDING") throw badRequest("Only pending orders can be cancelled");
     const updated = await prisma.order.update({ where: { id: order.id }, data: { status: "CANCELLED" } });

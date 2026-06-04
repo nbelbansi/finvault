@@ -32,7 +32,7 @@ budgetsRouter.patch(
   "/:id",
   asyncHandler(async (req, res) => {
     const user = await requireAuth(req);
-    const budget = await prisma.budget.findFirst({ where: { id: req.params.id, userId: user.id } });
+    const budget = await prisma.budget.findFirst({ where: { id: (req.params.id as string), userId: user.id } });
     if (!budget) throw notFound("Budget");
     const updated = await prisma.budget.update({
       where: { id: budget.id },
@@ -50,7 +50,7 @@ budgetsRouter.delete(
   "/:id",
   asyncHandler(async (req, res) => {
     const user = await requireAuth(req);
-    const budget = await prisma.budget.findFirst({ where: { id: req.params.id, userId: user.id } });
+    const budget = await prisma.budget.findFirst({ where: { id: (req.params.id as string), userId: user.id } });
     if (!budget) throw notFound("Budget");
     await prisma.budget.delete({ where: { id: budget.id } });
     res.status(204).send();
@@ -61,7 +61,7 @@ budgetsRouter.get(
   "/:id/spending",
   asyncHandler(async (req, res) => {
     const user = await requireAuth(req);
-    const budget = await prisma.budget.findFirst({ where: { id: req.params.id, userId: user.id } });
+    const budget = await prisma.budget.findFirst({ where: { id: (req.params.id as string), userId: user.id } });
     if (!budget) throw notFound("Budget");
     res.json({
       budgetId: budget.id,
@@ -77,7 +77,7 @@ budgetsRouter.post(
   "/:id/alerts",
   asyncHandler(async (req, res) => {
     const user = await requireAuth(req);
-    const budget = await prisma.budget.findFirst({ where: { id: req.params.id, userId: user.id } });
+    const budget = await prisma.budget.findFirst({ where: { id: (req.params.id as string), userId: user.id } });
     if (!budget) throw notFound("Budget");
     const { alertAtPercent } = req.body as { alertAtPercent?: number };
     const alertAt = budget.monthlyLimit * ((alertAtPercent ?? 80) / 100);
