@@ -165,7 +165,7 @@ watchlistRouter.delete(
   asyncHandler(async (req, res) => {
     const user = await requireAuth(req);
     await prisma.watchlistItem.deleteMany({
-      where: { userId: user.id, symbol: req.params.symbol.toUpperCase() },
+      where: { userId: user.id, symbol: (req.params.symbol as string).toUpperCase() },
     });
     res.status(204).send();
   })

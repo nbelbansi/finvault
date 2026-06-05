@@ -2,6 +2,8 @@ import express, { type NextFunction, type Request, type Response } from "express
 import cors from "cors";
 import swaggerUi from "swagger-ui-express";
 import { readFileSync } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
 import YAML from "yaml";
 import { resolveOpenApiPath } from "./lib/paths.js";
 import { errorHandler } from "./middleware/errorHandler.js";
@@ -76,6 +78,17 @@ export function createApp() {
     }
   } else {
     console.warn("OpenAPI spec not found — /api/docs disabled");
+  }
+
+
+  // Serve React frontend in production
+  if (process.env.NODE_ENV === 'production') {
+    const __dirname = dirname(fileURLToPath(import.meta.url));
+    const webDist = join(__dirname, '../../web/dist');
+    app.use(express.static(webDist));
+  app.get('*splat', (_req, res) => {
+      res.sendFile(join(webDist, 'index.html'));
+    });
   }
 
   app.use(errorHandler);

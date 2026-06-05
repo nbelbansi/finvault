@@ -19,7 +19,8 @@
     "db:reset": "npm run build -w @finvault/shared && npm run db:reset -w @finvault/api",
     "test:api": "npm run test -w @finvault/api-tests",
     "test:e2e": "npm run test -w @finvault/e2e-tests",
-    "test": "npm run test:api && npm run test:e2e"
+    "test": "npm run test:api && npm run test:e2e",
+    "start": "npm run start -w @finvault/api"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
