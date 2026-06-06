@@ -1,220 +1,2691 @@
 openapi: 3.0.3
 info:
   title: FinVault API
-  description: Banking simulator API for test automation practice
+  description: |
+    Banking simulator API for test automation practice.
+    All protected endpoints require a Bearer JWT token obtained via `/auth/login` or `/auth/register`.
   version: 1.0.0
 servers:
   - url: http://localhost:4000/api
+    description: Local development
+
+tags:
+  - name: Auth
+    description: Authentication and user profile
+  - name: Accounts
+    description: Bank accounts, deposits, withdrawals
+  - name: Transfers
+    description: Internal and external transfers
+  - name: Payees
+    description: Saved payees for bill pay
+  - name: Bills
+    description: Bill payments
+  - name: Cards
+    description: Debit/credit cards
+  - name: Budgets
+    description: Spending budgets
+  - name: Investments
+    description: Portfolios, orders, watchlist
+  - name: Loans
+    description: Loan applications and payments
+  - name: Notifications
+    description: In-app notifications
+  - name: Admin
+    description: Admin-only operations (requires ADMIN role)
+
 paths:
+
+  # ── AUTH ──────────────────────────────────────────────────────────────────
+
   /auth/register:
     post:
       tags: [Auth]
-      summary: Register new user
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            example:
+              email: john.doe@example.com
+              password: Password1
+              firstName: John
+              lastName: Doe
+              phone: "+14155550100"
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
   /auth/login:
     post:
       tags: [Auth]
-      summary: Login
+      summary: Login and receive a JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: john.doe@example.com
+              password: Password1
+      responses:
+        '200':
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   /auth/logout:
     post:
       tags: [Auth]
-      security: [{ bearerAuth: [] }]
+      summary: Logout (audit event)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   /auth/refresh:
     post:
       tags: [Auth]
-      security: [{ bearerAuth: [] }]
+      summary: Refresh JWT token
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: New token issued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   /auth/forgot-password:
     post:
       tags: [Auth]
+      summary: Request a password reset token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Reset token returned (dev mode — normally only emailed)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  resetToken:
+                    type: string
+
   /auth/reset-password:
     post:
       tags: [Auth]
+      summary: Reset password using a reset token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token:
+                  type: string
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Password updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
   /auth/me:
     get:
       tags: [Auth]
-      security: [{ bearerAuth: [] }]
+      summary: Get current user profile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
     patch:
       tags: [Auth]
-      security: [{ bearerAuth: [] }]
+      summary: Update current user profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Updated user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ── ACCOUNTS ─────────────────────────────────────────────────────────────
+
   /accounts:
     get:
       tags: [Accounts]
-      security: [{ bearerAuth: [] }]
+      summary: List all active accounts for the authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of accounts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accounts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Account'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
     post:
       tags: [Accounts]
-      security: [{ bearerAuth: [] }]
+      summary: Create a new account
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAccountRequest'
+            example:
+              name: My Savings
+              type: SAVINGS
+              initialDeposit: 1000
+      responses:
+        '201':
+          description: Account created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  account:
+                    $ref: '#/components/schemas/Account'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   /accounts/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
     get:
       tags: [Accounts]
-      security: [{ bearerAuth: [] }]
+      summary: Get account by ID
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Account details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  account:
+                    $ref: '#/components/schemas/Account'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
     patch:
       tags: [Accounts]
-      security: [{ bearerAuth: [] }]
+      summary: Update account name
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  maxLength: 100
+      responses:
+        '200':
+          description: Updated account
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  account:
+                    $ref: '#/components/schemas/Account'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
     delete:
       tags: [Accounts]
-      security: [{ bearerAuth: [] }]
+      summary: Delete account (balance must be zero)
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Account deleted
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /accounts/{id}/transactions:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
     get:
       tags: [Accounts]
-      security: [{ bearerAuth: [] }]
+      summary: List transactions for an account (paginated)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Paginated transaction list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transactions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Transaction'
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+                  total:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /accounts/{id}/balance:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
     get:
       tags: [Accounts]
-      security: [{ bearerAuth: [] }]
+      summary: Get current balance
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Balance
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  balance:
+                    type: number
+                  currency:
+                    type: string
+                    example: USD
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /accounts/{id}/deposit:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
     post:
       tags: [Accounts]
-      security: [{ bearerAuth: [] }]
+      summary: Deposit funds into account
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AmountMemoRequest'
+            example:
+              amount: 500
+              memo: Paycheck
+      responses:
+        '200':
+          description: Updated balance
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  account:
+                    $ref: '#/components/schemas/Account'
+                  balance:
+                    type: number
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /accounts/{id}/withdraw:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
     post:
       tags: [Accounts]
-      security: [{ bearerAuth: [] }]
+      summary: Withdraw funds from account
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AmountMemoRequest'
+            example:
+              amount: 200
+              memo: Rent
+      responses:
+        '200':
+          description: Updated balance
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  account:
+                    $ref: '#/components/schemas/Account'
+                  balance:
+                    type: number
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /accounts/{id}/close:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
     post:
       tags: [Accounts]
-      security: [{ bearerAuth: [] }]
+      summary: Close account (balance must be zero)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Closed account
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  account:
+                    $ref: '#/components/schemas/Account'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── TRANSFERS ─────────────────────────────────────────────────────────────
+
   /transfers:
     get:
       tags: [Transfers]
-      security: [{ bearerAuth: [] }]
+      summary: List transfers for the authenticated user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Filter by transfer status
+          schema:
+            type: string
+            enum: [PENDING, COMPLETED, CANCELLED]
+      responses:
+        '200':
+          description: List of transfers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transfers:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Transfer'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
     post:
       tags: [Transfers]
-      security: [{ bearerAuth: [] }]
+      summary: Create a transfer (internal or external, immediate or scheduled)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTransferRequest'
+            examples:
+              internal:
+                summary: Internal transfer between own accounts
+                value:
+                  fromAccountId: "uuid-of-source-account"
+                  toAccountId: "uuid-of-dest-account"
+                  amount: 250
+                  memo: Move to savings
+              external:
+                summary: External wire
+                value:
+                  fromAccountId: "uuid-of-source-account"
+                  externalAccountNumber: "123456789012"
+                  externalRoutingNumber: "021000021"
+                  amount: 500
+              scheduled:
+                summary: Scheduled future transfer
+                value:
+                  fromAccountId: "uuid-of-source-account"
+                  toAccountId: "uuid-of-dest-account"
+                  amount: 100
+                  scheduledDate: "2025-12-01T10:00:00Z"
+      responses:
+        '201':
+          description: Transfer created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transfer:
+                    $ref: '#/components/schemas/Transfer'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /transfers/scheduled:
     get:
       tags: [Transfers]
-      security: [{ bearerAuth: [] }]
+      summary: List pending scheduled transfers
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Scheduled transfers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transfers:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Transfer'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   /transfers/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
     get:
       tags: [Transfers]
-      security: [{ bearerAuth: [] }]
+      summary: Get a transfer by ID
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Transfer details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transfer:
+                    $ref: '#/components/schemas/Transfer'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /transfers/{id}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
     post:
       tags: [Transfers]
-      security: [{ bearerAuth: [] }]
+      summary: Cancel a pending transfer
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Cancelled transfer
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transfer:
+                    $ref: '#/components/schemas/Transfer'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── PAYEES ────────────────────────────────────────────────────────────────
+
   /payees:
     get:
       tags: [Payees]
-      security: [{ bearerAuth: [] }]
+      summary: List saved payees
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Payees
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  payees:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Payee'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
     post:
       tags: [Payees]
-      security: [{ bearerAuth: [] }]
+      summary: Add a new payee
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePayeeRequest'
+            example:
+              name: Electric Company
+              accountNumber: "00123456"
+              routingNumber: "021000021"
+              nickname: Power Bill
+      responses:
+        '201':
+          description: Payee created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  payee:
+                    $ref: '#/components/schemas/Payee'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   /payees/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
     patch:
       tags: [Payees]
-      security: [{ bearerAuth: [] }]
+      summary: Update payee name or nickname
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  maxLength: 100
+                nickname:
+                  type: string
+                  maxLength: 50
+      responses:
+        '200':
+          description: Updated payee
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  payee:
+                    $ref: '#/components/schemas/Payee'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
     delete:
       tags: [Payees]
-      security: [{ bearerAuth: [] }]
+      summary: Delete a payee
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── BILLS ─────────────────────────────────────────────────────────────────
+
   /bills:
     get:
       tags: [Bills]
-      security: [{ bearerAuth: [] }]
+      summary: List bill payments (most recent first)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Bill payments
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bills:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BillPayment'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   /bills/history:
     get:
       tags: [Bills]
-      security: [{ bearerAuth: [] }]
+      summary: List last 50 bill payments
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Bill payment history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bills:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BillPayment'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   /bills/pay:
     post:
       tags: [Bills]
-      security: [{ bearerAuth: [] }]
+      summary: Pay a bill immediately
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BillPayRequest'
+            example:
+              payeeId: "uuid-of-payee"
+              fromAccountId: "uuid-of-account"
+              amount: 120
+      responses:
+        '201':
+          description: Bill payment processed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bill:
+                    $ref: '#/components/schemas/BillPayment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /bills/schedule:
     post:
       tags: [Bills]
-      security: [{ bearerAuth: [] }]
+      summary: Schedule a future bill payment
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BillPayRequest'
+            example:
+              payeeId: "uuid-of-payee"
+              fromAccountId: "uuid-of-account"
+              amount: 120
+              dueDate: "2025-12-15T09:00:00Z"
+      responses:
+        '201':
+          description: Bill payment scheduled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bill:
+                    $ref: '#/components/schemas/BillPayment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ── CARDS ─────────────────────────────────────────────────────────────────
+
   /cards:
     get:
       tags: [Cards]
-      security: [{ bearerAuth: [] }]
+      summary: List cards for authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Cards
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  cards:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Card'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
     post:
       tags: [Cards]
-      security: [{ bearerAuth: [] }]
+      summary: Issue a new card
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                linkedAccountId:
+                  type: string
+                  format: uuid
+                brand:
+                  type: string
+                  enum: [VISA, MASTERCARD, AMEX]
+                  default: VISA
+            example:
+              linkedAccountId: "uuid-of-account"
+              brand: VISA
+      responses:
+        '201':
+          description: Card issued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  card:
+                    $ref: '#/components/schemas/Card'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /cards/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    patch:
+      tags: [Cards]
+      summary: Update card linked account
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                linkedAccountId:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Updated card
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  card:
+                    $ref: '#/components/schemas/Card'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /cards/{id}/freeze:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
     post:
       tags: [Cards]
-      security: [{ bearerAuth: [] }]
+      summary: Freeze a card
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Card frozen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  card:
+                    $ref: '#/components/schemas/Card'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /cards/{id}/unfreeze:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
     post:
       tags: [Cards]
-      security: [{ bearerAuth: [] }]
+      summary: Unfreeze a card
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Card unfrozen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  card:
+                    $ref: '#/components/schemas/Card'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /cards/{id}/transactions:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
     get:
       tags: [Cards]
-      security: [{ bearerAuth: [] }]
+      summary: List card transactions (simulated data)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Card transactions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transactions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        merchant:
+                          type: string
+                        amount:
+                          type: number
+                        date:
+                          type: string
+                          format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /cards/{id}/limits:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
     post:
       tags: [Cards]
-      security: [{ bearerAuth: [] }]
+      summary: Set card daily spending limit (100–50000)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [dailyLimit]
+              properties:
+                dailyLimit:
+                  type: number
+                  minimum: 100
+                  maximum: 50000
+            example:
+              dailyLimit: 2000
+      responses:
+        '200':
+          description: Limit updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  card:
+                    $ref: '#/components/schemas/Card'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── BUDGETS ───────────────────────────────────────────────────────────────
+
   /budgets:
     get:
       tags: [Budgets]
-      security: [{ bearerAuth: [] }]
+      summary: List budgets for authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Budgets
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  budgets:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Budget'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
     post:
       tags: [Budgets]
-      security: [{ bearerAuth: [] }]
+      summary: Create a new budget
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBudgetRequest'
+            example:
+              name: Groceries
+              category: Food
+              monthlyLimit: 600
+      responses:
+        '201':
+          description: Budget created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  budget:
+                    $ref: '#/components/schemas/Budget'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /budgets/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    patch:
+      tags: [Budgets]
+      summary: Update budget name, limit, or spent amount
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  maxLength: 100
+                monthlyLimit:
+                  type: number
+                  minimum: 0
+                spent:
+                  type: number
+                  minimum: 0
+      responses:
+        '200':
+          description: Updated budget
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  budget:
+                    $ref: '#/components/schemas/Budget'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Budgets]
+      summary: Delete a budget
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /budgets/{id}/spending:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
     get:
       tags: [Budgets]
-      security: [{ bearerAuth: [] }]
+      summary: Get spending summary for a budget
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Spending breakdown
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  budgetId:
+                    type: string
+                  spent:
+                    type: number
+                  limit:
+                    type: number
+                  remaining:
+                    type: number
+                  percentUsed:
+                    type: number
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /budgets/{id}/alerts:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
     post:
       tags: [Budgets]
-      security: [{ bearerAuth: [] }]
+      summary: Set budget alert threshold (percentage)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                alertAtPercent:
+                  type: number
+                  minimum: 1
+                  maximum: 100
+                  default: 80
+            example:
+              alertAtPercent: 75
+      responses:
+        '200':
+          description: Alert threshold updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  budget:
+                    $ref: '#/components/schemas/Budget'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── INVESTMENTS ───────────────────────────────────────────────────────────
+
   /portfolios:
     get:
       tags: [Investments]
-      security: [{ bearerAuth: [] }]
+      summary: List portfolios with holdings
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Portfolios
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  portfolios:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Portfolio'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
     post:
       tags: [Investments]
-      security: [{ bearerAuth: [] }]
+      summary: Create a new portfolio
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+            example:
+              name: Tech Growth
+      responses:
+        '201':
+          description: Portfolio created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  portfolio:
+                    $ref: '#/components/schemas/Portfolio'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   /portfolios/{id}/holdings:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
     get:
       tags: [Investments]
-      security: [{ bearerAuth: [] }]
+      summary: Get holdings for a portfolio
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Holdings list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  holdings:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Holding'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /orders:
     get:
       tags: [Investments]
-      security: [{ bearerAuth: [] }]
+      summary: List all orders for authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Orders
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  orders:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Order'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
     post:
       tags: [Investments]
-      security: [{ bearerAuth: [] }]
+      summary: Place a buy or sell order
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+            examples:
+              market_buy:
+                summary: Market buy
+                value:
+                  portfolioId: "uuid-of-portfolio"
+                  symbol: AAPL
+                  side: BUY
+                  quantity: 10
+                  orderType: MARKET
+              limit_sell:
+                summary: Limit sell
+                value:
+                  portfolioId: "uuid-of-portfolio"
+                  symbol: TSLA
+                  side: SELL
+                  quantity: 5
+                  orderType: LIMIT
+                  limitPrice: 250
+      responses:
+        '201':
+          description: Order placed and immediately filled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  order:
+                    $ref: '#/components/schemas/Order'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /orders/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    get:
+      tags: [Investments]
+      summary: Get order by ID
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Order details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  order:
+                    $ref: '#/components/schemas/Order'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Investments]
+      summary: Cancel a pending order
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Cancelled order
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  order:
+                    $ref: '#/components/schemas/Order'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /watchlist:
     get:
       tags: [Investments]
-      security: [{ bearerAuth: [] }]
+      summary: Get watchlist with simulated live prices
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Watchlist items
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  watchlist:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WatchlistItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
     post:
       tags: [Investments]
-      security: [{ bearerAuth: [] }]
+      summary: Add a symbol to watchlist
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [symbol]
+              properties:
+                symbol:
+                  type: string
+                  minLength: 1
+                  maxLength: 10
+            example:
+              symbol: NVDA
+      responses:
+        '201':
+          description: Symbol added
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  item:
+                    $ref: '#/components/schemas/WatchlistItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /watchlist/{symbol}:
+    parameters:
+      - name: symbol
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Ticker symbol (e.g. AAPL)
+    delete:
+      tags: [Investments]
+      summary: Remove a symbol from watchlist
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Removed
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ── LOANS ─────────────────────────────────────────────────────────────────
+
   /loans:
     get:
       tags: [Loans]
-      security: [{ bearerAuth: [] }]
+      summary: List loans for authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Loans
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  loans:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Loan'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   /loans/apply:
     post:
       tags: [Loans]
-      security: [{ bearerAuth: [] }]
-  /loans/{id}/payment:
-    post:
-      tags: [Loans]
-      security: [{ bearerAuth: [] }]
-  /loans/{id}/amortization:
+      summary: Apply for a loan (auto-approved)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoanApplyRequest'
+            example:
+              type: PERSONAL
+              amount: 10000
+              termMonths: 24
+              purpose: Home renovation
+      responses:
+        '201':
+          description: Loan approved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  loan:
+                    $ref: '#/components/schemas/Loan'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /loans/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
     get:
       tags: [Loans]
-      security: [{ bearerAuth: [] }]
+      summary: Get loan by ID
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Loan details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  loan:
+                    $ref: '#/components/schemas/Loan'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /loans/{id}/payment:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Loans]
+      summary: Make a loan payment
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount]
+              properties:
+                amount:
+                  type: number
+                  minimum: 0.01
+            example:
+              amount: 450
+      responses:
+        '200':
+          description: Updated loan
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  loan:
+                    $ref: '#/components/schemas/Loan'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /loans/{id}/amortization:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    get:
+      tags: [Loans]
+      summary: Get amortization schedule (first 12 months)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Amortization schedule
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  monthlyPayment:
+                    type: number
+                  schedule:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        month:
+                          type: integer
+                        payment:
+                          type: number
+                        principal:
+                          type: number
+                        interest:
+                          type: number
+                        balance:
+                          type: number
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /loans/{id}/prepay:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Loans]
+      summary: Make an early/extra loan payment
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount]
+              properties:
+                amount:
+                  type: number
+                  minimum: 0.01
+      responses:
+        '200':
+          description: Updated loan
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  loan:
+                    $ref: '#/components/schemas/Loan'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── NOTIFICATIONS ─────────────────────────────────────────────────────────
+
   /notifications:
     get:
       tags: [Notifications]
-      security: [{ bearerAuth: [] }]
+      summary: List notifications
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: unread
+          in: query
+          schema:
+            type: boolean
+          description: If true, return only unread notifications
+      responses:
+        '200':
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notifications:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Notification'
+                  unreadCount:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /notifications/{id}/read:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    patch:
+      tags: [Notifications]
+      summary: Mark a notification as read
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Updated notification
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notification:
+                    $ref: '#/components/schemas/Notification'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /notifications/read-all:
+    post:
+      tags: [Notifications]
+      summary: Mark all notifications as read
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: All notifications marked read
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /notifications/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    delete:
+      tags: [Notifications]
+      summary: Delete a notification
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── ADMIN ─────────────────────────────────────────────────────────────────
+
   /admin/users:
     get:
       tags: [Admin]
-      security: [{ bearerAuth: [] }]
+      summary: List all users (paginated) — ADMIN only
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: User list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AdminUserSummary'
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+                  total:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /admin/users/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    patch:
+      tags: [Admin]
+      summary: Update user role — ADMIN only
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role:
+                  type: string
+                  enum: [CUSTOMER, ADMIN]
+            example:
+              role: ADMIN
+      responses:
+        '200':
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/AdminUserSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /admin/audit-logs:
+    get:
+      tags: [Admin]
+      summary: Get last 100 audit log entries — ADMIN only
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Audit logs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  logs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AuditLog'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /admin/maintenance:
+    post:
+      tags: [Admin]
+      summary: Toggle maintenance mode — ADMIN only
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                enabled:
+                  type: boolean
+                message:
+                  type: string
+            example:
+              enabled: true
+              message: Scheduled maintenance 10–11pm
+      responses:
+        '200':
+          description: Maintenance state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  maintenance:
+                    type: object
+                    properties:
+                      enabled:
+                        type: boolean
+                      message:
+                        type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
   /admin/metrics:
     get:
       tags: [Admin]
-      security: [{ bearerAuth: [] }]
+      summary: Get system metrics — ADMIN only
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Metrics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  metrics:
+                    type: object
+                    properties:
+                      totalUsers:
+                        type: integer
+                      totalAccounts:
+                        type: integer
+                      totalTransfers:
+                        type: integer
+                      totalLoans:
+                        type: integer
+                      uptime:
+                        type: number
+                        description: Process uptime in seconds
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+# ── COMPONENTS ───────────────────────────────────────────────────────────────
+
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+
+  parameters:
+    IdParam:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Resource UUID
+
+  responses:
+    BadRequest:
+      description: Validation or business-logic error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: Insufficient funds
+            code: INSUFFICIENT_FUNDS
+    Unauthorized:
+      description: Missing or invalid JWT
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: Unauthorized
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: Forbidden
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: Account not found
+
+  schemas:
+
+    # ── Error ──────────────────────────────────────────────────────────────
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          description: Machine-readable error code (optional)
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+
+    # ── Auth ───────────────────────────────────────────────────────────────
+
+    RegisterRequest:
+      type: object
+      required: [email, password, firstName, lastName]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          description: Min 8 chars, must contain uppercase, lowercase, and digit
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 50
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 50
+        phone:
+          type: string
+          description: E.164 format, optional
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: Bearer JWT
+        user:
+          $ref: '#/components/schemas/UserSummary'
+
+    UserSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        role:
+          type: string
+          enum: [CUSTOMER, ADMIN]
+
+    UserProfile:
+      allOf:
+        - $ref: '#/components/schemas/UserSummary'
+        - type: object
+          properties:
+            phone:
+              type: string
+              nullable: true
+            preferences:
+              $ref: '#/components/schemas/UserPreferences'
+
+    UserPreferences:
+      type: object
+      properties:
+        theme:
+          type: string
+          enum: [light, dark, system]
+        notificationsEmail:
+          type: boolean
+        notificationsSms:
+          type: boolean
+        currency:
+          type: string
+          enum: [USD, EUR, GBP]
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 50
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 50
+        phone:
+          type: string
+        preferences:
+          $ref: '#/components/schemas/UserPreferences'
+
+    # ── Accounts ───────────────────────────────────────────────────────────
+
+    Account:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          type: string
+          enum: [CHECKING, SAVINGS, MONEY_MARKET, CD]
+        status:
+          type: string
+          enum: [ACTIVE, FROZEN, CLOSED]
+        balance:
+          type: number
+          format: double
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateAccountRequest:
+      type: object
+      required: [name, type]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        type:
+          type: string
+          enum: [CHECKING, SAVINGS, MONEY_MARKET, CD]
+        initialDeposit:
+          type: number
+          minimum: 0
+
+    AmountMemoRequest:
+      type: object
+      required: [amount]
+      properties:
+        amount:
+          type: number
+          minimum: 0.01
+        memo:
+          type: string
+          maxLength: 200
+
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        accountId:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [DEPOSIT, WITHDRAWAL, TRANSFER_IN, TRANSFER_OUT, BILL_PAY]
+        amount:
+          type: number
+          description: Positive for credits, negative for debits
+        balanceAfter:
+          type: number
+        memo:
+          type: string
+          nullable: true
+        referenceId:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    # ── Transfers ──────────────────────────────────────────────────────────
+
+    Transfer:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        fromAccountId:
+          type: string
+          format: uuid
+        toAccountId:
+          type: string
+          format: uuid
+          nullable: true
+        externalAccountNumber:
+          type: string
+          nullable: true
+        externalRoutingNumber:
+          type: string
+          nullable: true
+        amount:
+          type: number
+        status:
+          type: string
+          enum: [PENDING, COMPLETED, CANCELLED]
+        memo:
+          type: string
+          nullable: true
+        scheduledDate:
+          type: string
+          format: date-time
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateTransferRequest:
+      type: object
+      required: [fromAccountId, amount]
+      properties:
+        fromAccountId:
+          type: string
+          format: uuid
+        toAccountId:
+          type: string
+          format: uuid
+          description: Required if not sending to external account
+        externalAccountNumber:
+          type: string
+          pattern: '^\d{8,17}$'
+        externalRoutingNumber:
+          type: string
+          pattern: '^\d{9}$'
+        amount:
+          type: number
+          minimum: 0.01
+        memo:
+          type: string
+          maxLength: 200
+        scheduledDate:
+          type: string
+          format: date-time
+          description: ISO 8601. If future, transfer is queued as PENDING.
+
+    # ── Payees / Bills ─────────────────────────────────────────────────────
+
+    Payee:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        nickname:
+          type: string
+          nullable: true
+        accountNumber:
+          type: string
+        routingNumber:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    CreatePayeeRequest:
+      type: object
+      required: [name, accountNumber, routingNumber]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        accountNumber:
+          type: string
+          pattern: '^\d{4,17}$'
+        routingNumber:
+          type: string
+          pattern: '^\d{9}$'
+        nickname:
+          type: string
+          maxLength: 50
+
+    BillPayment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        payeeId:
+          type: string
+          format: uuid
+        fromAccountId:
+          type: string
+          format: uuid
+        amount:
+          type: number
+        status:
+          type: string
+          enum: [PENDING, COMPLETED, FAILED]
+        dueDate:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    BillPayRequest:
+      type: object
+      required: [payeeId, fromAccountId, amount]
+      properties:
+        payeeId:
+          type: string
+          format: uuid
+        fromAccountId:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          minimum: 0.01
+        dueDate:
+          type: string
+          format: date-time
+
+    # ── Cards ──────────────────────────────────────────────────────────────
+
+    Card:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        lastFour:
+          type: string
+          description: Last 4 digits of card number
+        brand:
+          type: string
+          enum: [VISA, MASTERCARD, AMEX]
+        status:
+          type: string
+          enum: [ACTIVE, FROZEN, CANCELLED]
+        dailyLimit:
+          type: number
+          default: 5000
+        linkedAccountId:
+          type: string
+          format: uuid
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    # ── Budgets ────────────────────────────────────────────────────────────
+
+    Budget:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        category:
+          type: string
+        monthlyLimit:
+          type: number
+        spent:
+          type: number
+        alertAt:
+          type: number
+          nullable: true
+          description: Absolute amount at which to trigger alert
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateBudgetRequest:
+      type: object
+      required: [name, category, monthlyLimit]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        category:
+          type: string
+          minLength: 1
+          maxLength: 50
+        monthlyLimit:
+          type: number
+          minimum: 0.01
+          maximum: 1000000
+
+    # ── Investments ────────────────────────────────────────────────────────
+
+    Portfolio:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        holdings:
+          type: array
+          items:
+            $ref: '#/components/schemas/Holding'
+
+    Holding:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        portfolioId:
+          type: string
+          format: uuid
+        symbol:
+          type: string
+        quantity:
+          type: number
+        avgCost:
+          type: number
+          description: Average cost basis per share
+
+    Order:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        portfolioId:
+          type: string
+          format: uuid
+        symbol:
+          type: string
+        side:
+          type: string
+          enum: [BUY, SELL]
+        quantity:
+          type: number
+        orderType:
+          type: string
+          enum: [MARKET, LIMIT]
+        limitPrice:
+          type: number
+          nullable: true
+        status:
+          type: string
+          enum: [PENDING, FILLED, CANCELLED]
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateOrderRequest:
+      type: object
+      required: [portfolioId, symbol, side, quantity, orderType]
+      properties:
+        portfolioId:
+          type: string
+          format: uuid
+        symbol:
+          type: string
+          minLength: 1
+          maxLength: 10
+        side:
+          type: string
+          enum: [BUY, SELL]
+        quantity:
+          type: number
+          minimum: 0.01
+          maximum: 10000
+        orderType:
+          type: string
+          enum: [MARKET, LIMIT]
+        limitPrice:
+          type: number
+          minimum: 0.01
+          description: Required when orderType is LIMIT
+
+    WatchlistItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        symbol:
+          type: string
+        price:
+          type: number
+          description: Simulated current price
+        change:
+          type: number
+          description: Simulated price change
+
+    # ── Loans ──────────────────────────────────────────────────────────────
+
+    Loan:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [PERSONAL, AUTO, MORTGAGE]
+        amount:
+          type: number
+          description: Original loan amount
+        termMonths:
+          type: integer
+        rate:
+          type: number
+          description: Annual interest rate (%)
+        status:
+          type: string
+          enum: [PENDING, APPROVED, ACTIVE, PAID_OFF, DEFAULTED]
+        balance:
+          type: number
+          description: Remaining balance
+        purpose:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    LoanApplyRequest:
+      type: object
+      required: [type, amount, termMonths]
+      properties:
+        type:
+          type: string
+          enum: [PERSONAL, AUTO, MORTGAGE]
+        amount:
+          type: number
+          minimum: 1
+          maximum: 5000000
+        termMonths:
+          type: integer
+          minimum: 6
+          maximum: 360
+        purpose:
+          type: string
+          maxLength: 500
+
+    # ── Notifications ──────────────────────────────────────────────────────
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        body:
+          type: string
+        read:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    # ── Admin ──────────────────────────────────────────────────────────────
+
+    AdminUserSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        role:
+          type: string
+          enum: [CUSTOMER, ADMIN]
+        createdAt:
+          type: string
+          format: date-time
+
+    AuditLog:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+          nullable: true
+        action:
+          type: string
+        entity:
+          type: string
+        metadata:
+          type: object
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        user:
+          type: object
+          nullable: true
+          properties:
+            email:
+              type: string
